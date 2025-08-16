@@ -1,7 +1,7 @@
 import { useState } from "react";
 import emailjs from "@emailjs/browser";
-
 import TitleHeader from "../components/TitleHeader";
+import { createContact as createContactApi } from "../apis/contacts";
 
 const Contact = () => {
   const [loading, setLoading] = useState(false);
@@ -23,18 +23,33 @@ const Contact = () => {
     setLoading(true);
 
     try {
-      await emailjs.send(
-        import.meta.env.VITE_APP_EMAILJS_SERVICE_ID, // service_l3jevok
-        import.meta.env.VITE_APP_EMAILJS_TEMPLATE_ID, // template_nu4u2xe
-        {
-          title: form.title,
-          name: form.name,
-          time: form.time,
-          message: form.message,
-          email: form.email,
-        },
-        import.meta.env.VITE_APP_EMAILJS_PUBLIC_KEY // Your public key
-      );
+      // 1) Send to backend (source of truth)
+      await createContactApi({
+        name: form.name,
+        email: form.email,
+        topic: form.title,
+        message: form.message,
+        type: "other",
+        meta: { preferredTime: form.time },
+      });
+
+      // 2) Best-effort EmailJS (does not block success)
+      try {
+        await emailjs.send(
+          import.meta.env.VITE_APP_EMAILJS_SERVICE_ID,
+          import.meta.env.VITE_APP_EMAILJS_TEMPLATE_ID,
+          {
+            title: form.title,
+            name: form.name,
+            time: form.time,
+            message: form.message,
+            email: form.email,
+          },
+          import.meta.env.VITE_APP_EMAILJS_PUBLIC_KEY
+        );
+      } catch (emailErr) {
+        console.warn("EmailJS best-effort send failed:", emailErr);
+      }
 
       // Reset form
       setForm({
@@ -45,7 +60,7 @@ const Contact = () => {
         email: "",
       });
     } catch (error) {
-      console.error("EmailJS Error:", error);
+      console.error("Contact submit error:", error?.response?.data || error);
     } finally {
       setLoading(false);
     }

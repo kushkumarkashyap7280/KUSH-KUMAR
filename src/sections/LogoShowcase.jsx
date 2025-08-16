@@ -1,10 +1,20 @@
 import { logoIconsList } from "../constants";
+import * as FM from "framer-motion";
 
 const LogoIcon = ({ icon }) => {
+  const { Icon, color, name } = icon;
+  if (!Icon) return null;
+  const glow = `${color}55`; // soft glow with alpha
   return (
-    <div className="flex-none flex-center marquee-item">
-      <img src={icon.imgPath} alt={icon.name} />
-    </div>
+    <FM.motion.div
+      className="flex-none flex-center marquee-item cursor-pointer"
+      whileHover={{ scale: 1.15, rotate: 4 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 300, damping: 18 }}
+      style={{ filter: `drop-shadow(0 6px 14px ${glow})` }}
+    >
+      <Icon title={name} color={color} size={44} />
+    </FM.motion.div>
   );
 };
 

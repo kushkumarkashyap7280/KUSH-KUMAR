@@ -1,10 +1,12 @@
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-import { expCards } from "../constants";
+import { useEffect, useMemo, useState } from "react";
+import { FaMapMarkerAlt, FaBuilding } from "react-icons/fa";
 import TitleHeader from "../components/TitleHeader";
 import GlowCard from "../components/GlowCard";
+import { getPublicExperiences } from "../apis/experiences";
+import { toExpCardsFromApiResponse } from "../utils/experience";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -89,6 +91,30 @@ const Experience = () => {
     }, "<"); // position parameter - insert at the start of the animation
   }, []);
 
+  // Fetch experiences from API and map to expCards shape
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await getPublicExperiences();
+        const cards = toExpCardsFromApiResponse(res);
+        if (mounted) setItems(cards);
+      } catch (err) {
+        if (import.meta.env.DEV) console.error("getPublicExperiences failed", err);
+        if (mounted) setError("Failed to load experiences.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const list = useMemo(() => items, [items]);
+
   return (
     <section
       id="experience"
@@ -101,10 +127,10 @@ const Experience = () => {
         />
         <div className="mt-32 relative">
           <div className="relative z-50 xl:space-y-32 space-y-10">
-            {expCards.map((card) => (
+            {(loading ? [] : list).map((card) => (
               <div key={card.title} className="exp-card-wrapper">
                 <div className="xl:w-2/6">
-                  <GlowCard card={card}>
+                  <GlowCard>
                     <div>
                       <img src={card.imgPath} alt="exp-img" />
                     </div>
@@ -117,14 +143,45 @@ const Experience = () => {
                       <div className="gradient-line w-1 h-full" />
                     </div>
                     <div className="expText flex xl:gap-20 md:gap-10 gap-5 relative z-20">
-                      <div className="timeline-logo">
-                        <img src={card.logoPath} alt="logo" />
+                      <div className="timeline-logo group">
+                        <div className="flex items-center justify-center rounded-full w-12 h-12 border border-white/20 bg-gradient-to-br from-cyan-400/20 via-fuchsia-400/20 to-purple-500/20 transition-all duration-300 group-hover:from-cyan-400/40 group-hover:via-fuchsia-400/40 group-hover:to-purple-500/40">
+                          <FaMapMarkerAlt
+                            title="Location"
+                            className="text-white text-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+                          />
+                        </div>
                       </div>
                       <div>
                         <h1 className="font-semibold text-3xl">{card.title}</h1>
+                        {(card.company || card.location) && (
+                          <p className="mt-2 text-white/70 flex items-center gap-4 text-sm">
+                            {card.company && (
+                              <span className="inline-flex items-center gap-2">
+                                <FaBuilding className="opacity-80" /> {card.company}
+                              </span>
+                            )}
+                            {card.location && (
+                              <span className="inline-flex items-center gap-2">
+                                <FaMapMarkerAlt className="opacity-80" /> {card.location}
+                              </span>
+                            )}
+                          </p>
+                        )}
                         <p className="my-5 text-white-50">
                           🗓️&nbsp;{card.date}
                         </p>
+                        {Array.isArray(card.tags) && card.tags.length > 0 && (
+                          <div className="mt-2 mb-4 flex flex-wrap gap-2">
+                            {card.tags.map((tag, i) => (
+                              <span
+                                key={`${tag}-${i}`}
+                                className="text-xs px-2 py-0.5 rounded-full border border-white/15 bg-gradient-to-r from-white/5 to-transparent text-white/80"
+                              >
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <p className="text-[#839CB5] italic">
                           Responsibilities
                         </p>
@@ -143,6 +200,12 @@ const Experience = () => {
                 </div>
               </div>
             ))}
+            {!loading && list.length === 0 && !error && (
+              <p className="text-white-50">No published experiences yet.</p>
+            )}
+            {error && (
+              <p className="text-red-400">{error}</p>
+            )}
           </div>
         </div>
       </div>

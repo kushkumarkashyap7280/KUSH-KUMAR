@@ -1,6 +1,39 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 import { navLinks } from "../constants";
+
+// Typing logo with optional instant rendering (for roll-up duplicate)
+const TypingLogo = ({ instant = false }) => {
+  const name = "KUSH KUMAR";
+  const [subIndex, setSubIndex] = useState(instant ? name.length : 0);
+  const [cursorOn, setCursorOn] = useState(!instant);
+
+  // Blink cursor only when not instant
+  useEffect(() => {
+    if (instant) return;
+    const blink = setInterval(() => setCursorOn((v) => !v), 500);
+    return () => clearInterval(blink);
+  }, [instant]);
+
+  // Typing progression only when not instant
+  useEffect(() => {
+    if (instant) return;
+    if (subIndex < name.length) {
+      const t = setTimeout(() => setSubIndex((s) => s + 1), 90);
+      return () => clearTimeout(t);
+    }
+  }, [instant, subIndex, name.length]);
+
+  return (
+    <span className="inline-flex items-center gap-1 font-semibold tracking-wide">
+      <span>{name.substring(0, subIndex)}</span>
+      <span aria-hidden className="text-white/80" style={{ opacity: cursorOn ? 1 : 0 }}>
+        |
+      </span>
+    </span>
+  );
+};
 
 const NavBar = () => {
   // track if the user has scrolled down the page
@@ -26,9 +59,37 @@ const NavBar = () => {
 
   return (
     <header className={`navbar ${scrolled ? "scrolled" : "not-scrolled"}`}>
+      {/* Local styles for glass-friendly shimmer + roll-up effect */}
+      <style>{`
+        /* Glass-friendly shimmer: keep text color, sweep a translucent gloss overlay */
+        .shimmer-wrap { position: relative; display: inline-block; }
+        .shimmer-wrap::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+          transform: translateX(-150%);
+          opacity: 0;
+          pointer-events: none;
+          mix-blend-mode: screen;
+          filter: blur(0.5px);
+        }
+        .logo:hover .shimmer-wrap::after { opacity: 1; animation: gloss-move 1.4s linear; }
+        @keyframes gloss-move { to { transform: translateX(150%); } }
+        /* Roll-up effect */
+        .rollup { display: inline-block; height: 1em; overflow: hidden; line-height: 1; }
+        .rollup-inner { display: block; transform: translateY(0%); transition: transform 350ms ease; }
+        .rollup-line { display: block; }
+        .logo:hover .rollup-inner { transform: translateY(-100%); }
+      `}</style>
       <div className="inner">
-        <a href="#hero" className="logo">
-          KUSH KUMAR
+        <a href="#hero" className="logo group relative inline-block">
+          <span className="rollup">
+            <span className="rollup-inner">
+              <span className="rollup-line shimmer-wrap"><TypingLogo /></span>
+              <span className="rollup-line shimmer-wrap"><TypingLogo instant /></span>
+            </span>
+          </span>
         </a>
 
         {/* Desktop nav */}
@@ -43,11 +104,17 @@ const NavBar = () => {
               </li>
             ))}
           </ul>
-          <a href="#contact" className="contact-btn p-3 group">
+          <motion.a
+            href="#contact"
+            className="contact-btn p-3 group"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+          >
             <div className="inner">
               <span>Contact me</span>
             </div>
-          </a>
+          </motion.a>
         </nav>
 
         {/* Mobile actions */}
@@ -92,13 +159,15 @@ const NavBar = () => {
                   {name}
                 </a>
               ))}
-              <a
+              <motion.a
                 href="#contact"
                 onClick={() => setMobileOpen(false)}
                 className="w-full rounded-xl border border-white/10 bg-white text-black text-center py-3 px-4 font-semibold"
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
               >
                 Contact me
-              </a>
+              </motion.a>
             </nav>
           </div>
         </div>

@@ -1,27 +1,24 @@
-import Testimonials from "./sections/Testimonials";
-import Footer from "./sections/Footer";
-import Contact from "./sections/Contact";
-import TechStack from "./sections/TechStack";
-import Experience from "./sections/Experience";
-import Hero from "./sections/Hero";
-import ShowcaseSection from "./sections/ShowcaseSection";
-import LogoShowcase from "./sections/LogoShowcase";
-import FeatureCards from "./sections/FeatureCards";
-import Navbar from "./components/NavBar";
+import { AdminProvider, useAdmin } from "./context/AdminContext";
+import PublicLayout from "./layouts/PublicLayout";
+import AdminLayout from "./layouts/AdminLayout";
+import Login from "./components/Login";
+import CustomCursor from "./components/CustomCursor";
 
-const App = () => (
-  <>
-    <Navbar />
-    <Hero />
-    <ShowcaseSection />
-    <LogoShowcase />
-    <FeatureCards />
-    <Experience />
-    <TechStack />
-    <Testimonials />
-    <Contact />
-    <Footer />
-  </>
-);
+function AppContent() {
+  const { user, loading, showLogin } = useAdmin();
 
-export default App;
+  if (loading) return <div>Loading...</div>;
+
+  if (showLogin) return <Login />;
+
+  return user ? <AdminLayout /> : <PublicLayout />;
+}
+
+export default function App() {
+  return (
+    <AdminProvider>
+      <CustomCursor />
+      <AppContent />
+    </AdminProvider>
+  );
+}
