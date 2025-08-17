@@ -16,6 +16,7 @@ export default function AdminProfile() {
     email: user?.email || "",
     resume: user?.resume || "",
     avatar: user?.avatar || "",
+    description: user?.description || "",
   }), [user]);
 
   const [form, setForm] = useState(initial);
@@ -128,6 +129,7 @@ export default function AdminProfile() {
       if (form.Fname) fd.append("Fname", form.Fname);
       if (typeof form.Lname === "string") fd.append("Lname", form.Lname);
       if (form.email) fd.append("email", form.email);
+      if (typeof form.description === "string") fd.append("description", form.description);
       if (form.resume) fd.append("resume", form.resume); // server accepts resume or resumeUrl
       if (avatarFile) fd.append("avatar", avatarFile);
 
@@ -241,6 +243,10 @@ export default function AdminProfile() {
             <div className="mt-0.5">{user.email || "—"}</div>
           </div>
           <div className="sm:col-span-2 rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="text-white/60">Description</div>
+            <div className="mt-0.5 whitespace-pre-wrap break-words">{user.description || "—"}</div>
+          </div>
+          <div className="sm:col-span-2 rounded-lg border border-white/10 bg-white/5 p-4">
             <div className="text-white/60">Resume URL</div>
             <div className="mt-0.5 break-all">
               {user.resume ? (
@@ -318,6 +324,16 @@ export default function AdminProfile() {
                 value={form.email}
                 onChange={(e) => handleField("email", e.target.value)}
                 required
+              />
+            </label>
+            <label className="text-xs sm:col-span-2">
+              <span className="block mb-1 text-white/70">Description</span>
+              <textarea
+                rows={3}
+                placeholder="Short bio or headline..."
+                className="w-full rounded-md bg-white/10 border border-white/10 px-3 py-2 text-sm"
+                value={form.description}
+                onChange={(e) => handleField("description", e.target.value)}
               />
             </label>
             <label className="text-xs sm:col-span-2">

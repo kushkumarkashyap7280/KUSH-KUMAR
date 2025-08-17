@@ -130,12 +130,12 @@ const Experience = () => {
               <div key={card.title} className="exp-card-wrapper timeline-card">
                 <div className="xl:w-2/6">
                   <GlowCard>
-                    <div className="flex items-center justify-center p-6 min-h-[120px]">
+                    <div className="flex items-center justify-center p-3 min-h-[160px]">
                       {card.imgPath ? (
                         <img
                           src={card.imgPath}
                           alt={card.title || "Experience"}
-                          className="max-h-24 object-contain"
+                          className="w-[95%] h-[95%] object-contain"
                         />
                       ) : (
                         <FaMapMarkerAlt className="text-4xl text-white/80" />

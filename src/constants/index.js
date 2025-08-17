@@ -211,7 +211,7 @@ const socialLinks = [
     name: "X",
     Icon: FaXTwitter,
     color: "#000000",
-    link: "https://x.com/",
+    link: "https://x.com/CallOfCoders",
   },
   {
     name: "GitHub",
@@ -223,7 +223,8 @@ const socialLinks = [
     name: "LeetCode",
     Icon: SiLeetcode,
     color: "#FFA116",
-    link: "https://leetcode.com/",
+    link:"https://leetcode.com/kushkumarkashyap7280",
+   
   },
 ];
 

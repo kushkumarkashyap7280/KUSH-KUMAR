@@ -70,6 +70,7 @@ const Qualifications = () => {
     (async () => {
       try {
         const res = await getAdminStatus();
+        console.log(" response is ", res)
         const q = res?.data?.data?.admin?.qualification || [];
         const mapped = q.map((it, i) => ({
           id: `${it.title}-${i}`,
@@ -108,12 +109,12 @@ const Qualifications = () => {
               <div key={card.id} className="exp-card-wrapper timeline-card">
                 <div className="xl:w-2/6">
                   <GlowCard>
-                    <div className="flex items-center justify-center p-6 min-h-[120px]">
+                    <div className="flex items-center justify-center p-3 min-h-[160px]">
                       {card.mediaUrl ? (
                         <img
                           src={card.mediaUrl}
                           alt={card.title}
-                          className="max-h-24 object-contain"
+                          className="w-[95%] h-[95%] object-contain"
                         />
                       ) : (
                         <FaGraduationCap className="text-4xl text-white/80" />

@@ -209,6 +209,12 @@ const Hero = () => {
                   {admin.Fname} {admin.Lname}
                 </h2>
               )}
+              {/* Short description/bio from public admin profile */}
+              {admin?.description && (
+                <p className="mt-2 text-sm sm:text-base md:text-lg text-white/70 max-w-2xl mx-auto whitespace-pre-wrap">
+                  {admin.description}
+                </p>
+              )}
             </div>
 
             {/* Download resume button */}
