@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useEffect, useMemo, useState } from "react";
-import { FaMapMarkerAlt, FaBuilding } from "react-icons/fa";
+import { FaMapMarkerAlt, FaBuilding, FaBriefcase } from "react-icons/fa";
 import TitleHeader from "../components/TitleHeader";
 import GlowCard from "../components/GlowCard";
 import { getPublicExperiences } from "../apis/experiences";
@@ -11,90 +11,80 @@ import { toExpCardsFromApiResponse } from "../utils/experience";
 gsap.registerPlugin(ScrollTrigger);
 
 const Experience = () => {
+  // State must be declared before hooks that depend on it
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   useGSAP(() => {
     // Loop through each timeline card and animate them in
     // as the user scrolls to each card
     gsap.utils.toArray(".timeline-card").forEach((card) => {
-      // Animate the card coming in from the left
-      // and fade in
-      gsap.from(card, {
-        // Move the card in from the left
-        xPercent: -100,
-        // Make the card invisible at the start
-        opacity: 0,
-        // Set the origin of the animation to the left side of the card
-        transformOrigin: "left left",
-        // Animate over 1 second
-        duration: 1,
-        // Use a power2 ease-in-out curve
-        ease: "power2.inOut",
-        // Trigger the animation when the card is 80% of the way down the screen
-        scrollTrigger: {
-          // The card is the trigger element
-          trigger: card,
-          // Trigger the animation when the card is 80% down the screen
-          start: "top 80%",
+      // Animate the card coming in from the left and fade in
+      gsap.fromTo(
+        card,
+        {
+          xPercent: -100,
+          opacity: 0,
         },
-      });
+        {
+          xPercent: 0,
+          opacity: 1,
+          transformOrigin: "left left",
+          duration: 1,
+          ease: "power2.inOut",
+          immediateRender: false,
+          scrollTrigger: {
+            trigger: card,
+            start: "top 80%",
+          },
+        }
+      );
     });
 
-    // Animate the timeline height as the user scrolls
-    // from the top of the timeline to 70% down the screen
-    // The timeline height should scale down from 1 to 0
-    // as the user scrolls up the screen
-    gsap.to(".timeline", {
-      // Set the origin of the animation to the bottom of the timeline
-      transformOrigin: "bottom bottom",
-      // Animate the timeline height over 1 second
-      ease: "power1.inOut",
-      // Trigger the animation when the timeline is at the top of the screen
-      // and end it when the timeline is at 70% down the screen
-      scrollTrigger: {
-        trigger: ".timeline",
-        start: "top center",
-        end: "70% center",
-        // Update the animation as the user scrolls
-        onUpdate: (self) => {
-          // Scale the timeline height as the user scrolls
-          // from 1 to 0 as the user scrolls up the screen
-          gsap.to(".timeline", {
-            scaleY: 1 - self.progress,
-          });
+    // Animate the timeline height as the user scrolls only if present
+    const tlEl = document.querySelector('.timeline');
+    if (tlEl) {
+      gsap.to(tlEl, {
+        transformOrigin: "bottom bottom",
+        ease: "power1.inOut",
+        scrollTrigger: {
+          trigger: tlEl,
+          start: "top center",
+          end: "70% center",
+          onUpdate: (self) => {
+            gsap.to(tlEl, { scaleY: 1 - self.progress });
+          },
         },
-      },
-    });
+      });
+    }
 
     // Loop through each expText element and animate them in
     // as the user scrolls to each text element
     gsap.utils.toArray(".expText").forEach((text) => {
       // Animate the text opacity from 0 to 1
-      // and move it from the left to its final position
-      // over 1 second with a power2 ease-in-out curve
-      gsap.from(text, {
-        // Set the opacity of the text to 0
-        opacity: 0,
-        // Move the text from the left to its final position
-        // (xPercent: 0 means the text is at its final position)
-        xPercent: 0,
-        // Animate over 1 second
-        duration: 1,
-        // Use a power2 ease-in-out curve
-        ease: "power2.inOut",
-        // Trigger the animation when the text is 60% down the screen
-        scrollTrigger: {
-          // The text is the trigger element
-          trigger: text,
-          // Trigger the animation when the text is 60% down the screen
-          start: "top 60%",
+      gsap.fromTo(
+        text,
+        {
+          opacity: 0,
+          xPercent: 0,
         },
-      });
+        {
+          opacity: 1,
+          xPercent: 0,
+          duration: 1,
+          ease: "power2.inOut",
+          immediateRender: false,
+          scrollTrigger: {
+            trigger: text,
+            start: "top 60%",
+          },
+        }
+      );
     }, "<"); // position parameter - insert at the start of the animation
-  }, []);
+  }, [loading]);
 
   // Fetch experiences from API and map to expCards shape
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -104,7 +94,7 @@ const Experience = () => {
         const cards = toExpCardsFromApiResponse(res);
         if (mounted) setItems(cards);
       } catch (err) {
-        if (import.meta.env.DEV) console.error("getPublicExperiences failed", err);
+        if (import.meta.env.DEV) console.error("[Experience] getPublicExperiences failed", err);
         if (mounted) setError("Failed to load experiences.");
       } finally {
         if (mounted) setLoading(false);
@@ -114,6 +104,15 @@ const Experience = () => {
   }, []);
 
   const list = useMemo(() => items, [items]);
+
+  // Ensure ScrollTrigger recalculates after items render
+  useEffect(() => {
+    try {
+      ScrollTrigger.refresh();
+    } catch (e) {
+      console.error("[Experience] ScrollTrigger.refresh failed", e);
+    }
+  }, [items]);
 
   return (
     <section
@@ -128,11 +127,19 @@ const Experience = () => {
         <div className="mt-32 relative">
           <div className="relative z-50 xl:space-y-32 space-y-10">
             {(loading ? [] : list).map((card) => (
-              <div key={card.title} className="exp-card-wrapper">
+              <div key={card.title} className="exp-card-wrapper timeline-card">
                 <div className="xl:w-2/6">
                   <GlowCard>
-                    <div>
-                      <img src={card.imgPath} alt="exp-img" />
+                    <div className="flex items-center justify-center p-6 min-h-[120px]">
+                      {card.imgPath ? (
+                        <img
+                          src={card.imgPath}
+                          alt={card.title || "Experience"}
+                          className="max-h-24 object-contain"
+                        />
+                      ) : (
+                        <FaMapMarkerAlt className="text-4xl text-white/80" />
+                      )}
                     </div>
                   </GlowCard>
                 </div>
@@ -140,14 +147,14 @@ const Experience = () => {
                   <div className="flex items-start">
                     <div className="timeline-wrapper">
                       <div className="timeline" />
-                      <div className="gradient-line w-1 h-full" />
+                      <div className="gradient-line w-1 h-full z-40" aria-hidden="true" />
                     </div>
                     <div className="expText flex xl:gap-20 md:gap-10 gap-5 relative z-20">
                       <div className="timeline-logo group">
                         <div className="flex items-center justify-center rounded-full w-12 h-12 border border-white/20 bg-gradient-to-br from-cyan-400/20 via-fuchsia-400/20 to-purple-500/20 transition-all duration-300 group-hover:from-cyan-400/40 group-hover:via-fuchsia-400/40 group-hover:to-purple-500/40">
-                          <FaMapMarkerAlt
-                            title="Location"
-                            className="text-white text-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+                          <FaBriefcase
+                            title="Experience"
+                            className="text-white text-xl transition-transform duration-300 group-hover:scale-110"
                           />
                         </div>
                       </div>

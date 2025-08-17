@@ -7,6 +7,7 @@ import AnimatedCounter from "../components/AnimatedCounter";
 import ThreeImageCard from "../components/ThreeImageCard";
 import { words } from "../constants";
 import { getAdminStatus } from "../apis/admin";
+import { toast } from "sonner";
 
  // Typing effect for the animated words line
 const TypingWords = () => {
@@ -215,11 +216,19 @@ const Hero = () => {
               <div className="flex justify-center">
                 <a
                   href={admin?.resume ? toDriveDownload(admin.resume) : "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  // Drive will prompt a download with uc?export=download
-                  // 'download' attribute is ignored cross-origin; kept for non-Drive URLs
+                  // Open in the same tab; Drive uc?export=download will trigger download
                   download="resume.pdf"
+                  onClick={(e) => {
+                    if (!admin?.resume) {
+                      e.preventDefault();
+                      toast.error("Resume not available");
+                      return;
+                    }
+                    e.preventDefault();
+                    toast.success("Starting resume download...");
+                    const href = toDriveDownload(admin.resume);
+                    window.location.href = href;
+                  }}
                   className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white shadow hover:bg-red-700 transition-colors"
                 >
                   Download Resume

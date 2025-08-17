@@ -31,7 +31,7 @@ const GlowCard = ({ children }) => {
       onMouseMove={handleMouseMove}
       className="card card-border timeline-card rounded-xl p-10 mb-5 break-inside-avoid-column"
     >
-      <div className="glow"></div>
+      <div className="glow pointer-events-none"></div>
       {children}
     </div>
   );

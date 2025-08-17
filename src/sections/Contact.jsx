@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import emailjs from "@emailjs/browser";
 import TitleHeader from "../components/TitleHeader";
 import { createContact as createContactApi } from "../apis/contacts";
+import "./Contact.css";
 
 const Contact = () => {
   const [loading, setLoading] = useState(false);
@@ -59,31 +61,37 @@ const Contact = () => {
         message: "",
         email: "",
       });
+      toast.success("Thanks! Your message has been sent.");
     } catch (error) {
       console.error("Contact submit error:", error?.response?.data || error);
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to send your message. Please try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section id="contact" className="flex-center section-padding">
-      <div className="w-full h-full md:px-10 px-5">
+    <section id="contact" className="contact-section">
+      <div className="contact-container">
         <TitleHeader
           title="Get in Touch – Let’s Connect"
           sub="💬 Have questions or ideas? Let’s talk! 🚀"
         />
-        <div className="grid-12-cols mt-16">
-          <div className="xl:col-span-5">
-            <div className="flex-center card-border rounded-xl p-10">
-              <form onSubmit={handleSubmit} className="w-full flex flex-col gap-7">
-                
-                <div>
+        <div className="contact-grid">
+          <div>
+            <div className="contact-card">
+              <form onSubmit={handleSubmit} className="contact-form">
+                <div className="form-group">
                   <label htmlFor="title">Title</label>
                   <input
                     type="text"
                     id="title"
                     name="title"
+                    className="input"
                     value={form.title}
                     onChange={handleChange}
                     placeholder="Subject of your message"
@@ -91,12 +99,13 @@ const Contact = () => {
                   />
                 </div>
 
-                <div>
+                <div className="form-group">
                   <label htmlFor="name">Your Name</label>
                   <input
                     type="text"
                     id="name"
                     name="name"
+                    className="input"
                     value={form.name}
                     onChange={handleChange}
                     placeholder="What’s your good name?"
@@ -104,24 +113,26 @@ const Contact = () => {
                   />
                 </div>
 
-                <div>
+                <div className="form-group">
                   <label htmlFor="time">Preferred Time</label>
                   <input
                     type="text"
                     id="time"
                     name="time"
+                    className="input"
                     value={form.time}
                     onChange={handleChange}
                     placeholder="When should I contact you?"
                   />
                 </div>
 
-                <div>
+                <div className="form-group">
                   <label htmlFor="email">Your Email</label>
                   <input
                     type="email"
                     id="email"
                     name="email"
+                    className="input"
                     value={form.email}
                     onChange={handleChange}
                     placeholder="What’s your email address?"
@@ -129,11 +140,12 @@ const Contact = () => {
                   />
                 </div>
 
-                <div>
+                <div className="form-group">
                   <label htmlFor="message">Your Message</label>
                   <textarea
                     id="message"
                     name="message"
+                    className="textarea"
                     value={form.message}
                     onChange={handleChange}
                     placeholder="How can I help you?"
@@ -142,31 +154,16 @@ const Contact = () => {
                   />
                 </div>
 
-                <button type="submit">
-                  <div className="cta-button group">
-                    <div className="bg-circle" />
-                    <p className="text">
-                      {loading ? "Sending..." : "Send Message"}
-                    </p>
-                    <div className="arrow-wrapper">
-                      <img src="/images/arrow-down.svg" alt="arrow" />
-                    </div>
-                  </div>
-                </button>
+                <div className="actions">
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    {loading ? "Sending..." : "Send Message"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
 
-          <div className="xl:col-span-7 min-h-96">
-            <div className="w-full h-full rounded-3xl overflow-hidden border border-[#2A2A2A] bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] flex items-center justify-center p-8">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <img src="/images/chat.png" alt="Contact" className="w-20 h-20 opacity-90" />
-                <p className="text-white-50 max-w-md">
-                  I’ll get back to you shortly. This panel replaces the heavy 3D with a fast, clean visual.
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Right card removed as requested */}
         </div>
       </div>
     </section>

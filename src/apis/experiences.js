@@ -13,14 +13,24 @@ export const getPublicExperienceById = (id) => experiencesApi.get(`/public/${id}
 export const listExperiences = () => experiencesApi.get("/");
 export const getExperienceById = (id) => experiencesApi.get(`/${id}`);
 
-export const createExperience = (payload) => {
+export const createExperience = (payload, config = {}) => {
   // payload: plain object (JSON) or FormData (when including files: image, logo)
-  return experiencesApi.post("/", payload);
+  const isForm = typeof FormData !== "undefined" && payload instanceof FormData;
+  const headers = {
+    ...(config.headers || {}),
+    ...(isForm ? { "Content-Type": "multipart/form-data" } : {}),
+  };
+  return experiencesApi.post("/", payload, { ...config, headers });
 };
 
-export const updateExperience = (id, payload) => {
+export const updateExperience = (id, payload, config = {}) => {
   // payload: plain object (JSON) or FormData
-  return experiencesApi.patch(`/${id}`, payload);
+  const isForm = typeof FormData !== "undefined" && payload instanceof FormData;
+  const headers = {
+    ...(config.headers || {}),
+    ...(isForm ? { "Content-Type": "multipart/form-data" } : {}),
+  };
+  return experiencesApi.patch(`/${id}`, payload, { ...config, headers });
 };
 
 export const deleteExperience = (id) => experiencesApi.delete(`/${id}`);

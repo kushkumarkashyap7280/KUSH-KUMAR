@@ -3,6 +3,7 @@ import Footer from "../sections/Footer";
 import Contact from "../sections/Contact";
 import TechStack from "../sections/TechStack";
 import Experience from "../sections/Experience";
+import Qualifications from "../sections/Qualifications";
 import Hero from "../sections/Hero";
 import ShowcaseSection from "../sections/ShowcaseSection";
 import LogoShowcase from "../sections/LogoShowcase";
@@ -13,6 +14,7 @@ const PublicLayout = () => (
   <>
     <Navbar />
     <Hero />
+    <Qualifications />
     <ShowcaseSection />
     <LogoShowcase />
     <FeatureCards />

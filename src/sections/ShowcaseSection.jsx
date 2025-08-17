@@ -4,6 +4,9 @@ import { FaExternalLinkAlt, FaGithub } from "react-icons/fa";
 
 const AppShowcase = () => {
   const [projects, setProjects] = useState([]);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterTech, setFilterTech] = useState("");
+  const [visible, setVisible] = useState(3);
 
   // Fetch public projects on mount
   useEffect(() => {
@@ -31,17 +34,63 @@ const AppShowcase = () => {
     };
   }, []);
 
+  const filtered = (projects || [])
+    .filter((p) => p?.published === true)
+    .filter((p) => (filterStatus === "all" ? true : p?.status === filterStatus))
+    .filter((p) => {
+      if (!filterTech.trim()) return true;
+      const q = filterTech.trim().toLowerCase();
+      const stack = Array.isArray(p?.techStack) ? p.techStack.map((t) => String(t).toLowerCase()) : [];
+      return stack.some((t) => t.includes(q));
+    })
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const visibleItems = filtered.slice(0, visible);
+
   return (
     <section id="work" className="relative p-6">
+      {/* Filters */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-white/70">Status</label>
+          <select
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setVisible(3);
+            }}
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
+          >
+            <option value="all">All</option>
+            <option value="planned">Planned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-white/70">Tech</label>
+          <input
+            value={filterTech}
+            onChange={(e) => {
+              setFilterTech(e.target.value);
+              setVisible(3);
+            }}
+            placeholder="e.g. react, mern"
+            className="w-44 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white placeholder-white/40"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {(projects || []).filter(p => p?.isPublished==true).map((p, idx) => (
+        {visibleItems.map((p, idx) => (
           <article
             key={p?._id || idx}
             className="group rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition-colors duration-300 shadow-sm hover:shadow-md"
           >
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/10">
               {/* Published badge */}
-              {p?.isPublished==true && (
+              {p?.published === true && (
                 <span className="absolute top-2 left-2 z-10 rounded-md bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-1 shadow">
                   Published
                 </span>
@@ -59,6 +108,22 @@ const AppShowcase = () => {
               {p?.description && (
                 <p className="mt-1 text-sm text-white/80 line-clamp-2">{p.description}</p>
               )}
+
+              {/* Status and Tech Stack badges */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {p?.status && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 capitalize">
+                    {String(p.status).replace(/_/g, ' ')}
+                  </span>
+                )}
+                {Array.isArray(p?.techStack) && p.techStack.length > 0 && (
+                  p.techStack.map((t, i) => (
+                    <span key={`${t}-${i}`} className="text-[11px] px-2 py-0.5 rounded-full border border-white/10 text-white/80">
+                      {t}
+                    </span>
+                  ))
+                )}
+              </div>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                 {p?.demoUrl && (
@@ -87,6 +152,25 @@ const AppShowcase = () => {
             </div>
           </article>
         ))}
+      </div>
+
+      {/* Show more / less */}
+      <div className="mt-6 flex justify-center">
+        {visible < filtered.length ? (
+          <button
+            onClick={() => setVisible((v) => v + 3)}
+            className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15 border border-white/10"
+          >
+            Show more
+          </button>
+        ) : filtered.length > 3 ? (
+          <button
+            onClick={() => setVisible(3)}
+            className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15 border border-white/10"
+          >
+            Show less
+          </button>
+        ) : null}
       </div>
     </section>
   );

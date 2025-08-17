@@ -13,6 +13,8 @@ const AnimatedCounter = () => {
   const counterRef = useRef(null);
   const centerRef = useRef(null);
   const [lc, setLc] = useState({ easy: 0, medium: 0, hard: 0, total: 0, acceptanceRate: 0, ranking: 0 });
+  const [loadingLC, setLoadingLC] = useState(true);
+  const [arcProgress, setArcProgress] = useState(0); // 0..1 for arc growth
   const [gh, setGh] = useState({ repos: 0, followers: 0, following: 0, gists: 0, stars: 0 });
 
   // shared helper
@@ -115,19 +117,33 @@ const AnimatedCounter = () => {
   useEffect(() => {
     const fetchLC = async () => {
       try {
-        const res = await fetch(`https://leetcode-stats-api.herokuapp.com/${encodeURIComponent(USERNAME)}`);
+        const res = await fetch(`https://leetcode-api-faisalshohag.vercel.app/${encodeURIComponent(USERNAME)}`);
         if (!res.ok) throw new Error("LeetCode stats fetch failed");
         const d = await res.json();
+        // Derive acceptance rate if not present
+        const acAll = Array.isArray(d?.matchedUserStats?.acSubmissionNum)
+          ? d.matchedUserStats.acSubmissionNum.find((x) => x?.difficulty === 'All')
+          : null;
+        const totAll = Array.isArray(d?.matchedUserStats?.totalSubmissionNum)
+          ? d.matchedUserStats.totalSubmissionNum.find((x) => x?.difficulty === 'All')
+          : null;
+        const accepted = Number(acAll?.submissions ?? acAll?.count ?? 0);
+        const attempts = Number(totAll?.submissions ?? totAll?.count ?? 0);
+        const accRate = attempts > 0 ? Math.round((accepted / attempts) * 100) : 0;
+
         setLc({
-          easy: Number(d?.easySolved) || 0,
-          medium: Number(d?.mediumSolved) || 0,
-          hard: Number(d?.hardSolved) || 0,
+          easy: Number(d?.easySolved ?? d?.matchedUserStats?.acSubmissionNum?.find?.((x) => x?.difficulty === 'Easy')?.count) || 0,
+          medium: Number(d?.mediumSolved ?? d?.matchedUserStats?.acSubmissionNum?.find?.((x) => x?.difficulty === 'Medium')?.count) || 0,
+          hard: Number(d?.hardSolved ?? d?.matchedUserStats?.acSubmissionNum?.find?.((x) => x?.difficulty === 'Hard')?.count) || 0,
           total: Number(d?.totalSolved) || 0,
-          acceptanceRate: Number(d?.acceptanceRate) || 0,
+          acceptanceRate: Number(d?.acceptanceRate) || accRate,
           ranking: Number(d?.ranking) || 0,
+          totalSubmissionsCount: Number(totAll?.count) || 0,
         });
       } catch (e) {
         console.error(e);
+      } finally {
+        setLoadingLC(false);
       }
     };
     fetchLC();
@@ -163,21 +179,52 @@ const AnimatedCounter = () => {
     fetchGH();
   }, []);
 
-  const total = lc.total || (lc.easy + lc.medium + lc.hard);
+  // When loading finishes, refresh ScrollTrigger so the in-view animation fires accurately
+  useEffect(() => {
+    if (!loadingLC) {
+      try {
+        ScrollTrigger.refresh();
+      } catch {
+        console.error("ScrollTrigger refresh failed");
+      }
+    }
+  }, [loadingLC]);
 
-  // Animate center number
+  const total = lc.total || (lc.easy + lc.medium + lc.hard);
+  // Center display uses total solved strictly
+  const displayTotal = total;
+
+  // Animate center number: smoothly run from 0 -> total when in view
   useGSAP(() => {
     if (!centerRef.current) return;
     const el = centerRef.current;
-    gsap.set(el, { innerText: "0" });
-    gsap.to(el, {
-      innerText: total,
-      duration: 1.6,
-      ease: "power2.out",
-      snap: { innerText: 1 },
+    const obj = { val: 0 };
+    // Reset display
+    el.textContent = "0";
+    gsap.to(obj, {
+      val: displayTotal,
+      duration: 1.8,
+      ease: "power3.out",
+      onUpdate: () => {
+        const v = Math.floor(obj.val);
+        el.textContent = String(v);
+      },
       scrollTrigger: { trigger: "#counter", start: "top center" },
     });
-  }, [total]);
+  }, [displayTotal]);
+
+  // Animate donut arcs growth 0 -> 1 when in view
+  useGSAP(() => {
+    const obj = { p: 0 };
+    setArcProgress(0);
+    gsap.to(obj, {
+      p: 1,
+      duration: 1.6,
+      ease: "power2.out",
+      onUpdate: () => setArcProgress(obj.p),
+      scrollTrigger: { trigger: "#counter", start: "top center" },
+    });
+  }, [lc.easy, lc.medium, lc.hard]);
 
   // Donut geometry
   const R = 60; // radius
@@ -189,6 +236,9 @@ const AnimatedCounter = () => {
   const segE = (e / sum) * C;
   const segM = (m / sum) * C;
   const segH = (h / sum) * C;
+  const pE = segE * arcProgress;
+  const pM = segM * arcProgress;
+  const pH = segH * arcProgress;
 
   return (
     <div id="counter" ref={counterRef} className="padding-x-lg xl:mt-0 mt-32">
@@ -206,7 +256,7 @@ const AnimatedCounter = () => {
                   <circle
                     cx="100" cy="100" r={R} fill="none"
                     stroke="#22c55e" strokeWidth="14"
-                    strokeDasharray={`${segE} ${C - segE}`}
+                    strokeDasharray={`${pE} ${C - pE}`}
                     strokeDashoffset={0}
                     strokeLinecap="round"
                   />
@@ -214,23 +264,23 @@ const AnimatedCounter = () => {
                   <circle
                     cx="100" cy="100" r={R} fill="none"
                     stroke="#f59e0b" strokeWidth="14"
-                    strokeDasharray={`${segM} ${C - segM}`}
-                    strokeDashoffset={-segE}
+                    strokeDasharray={`${pM} ${C - pM}`}
+                    strokeDashoffset={-pE}
                     strokeLinecap="round"
                   />
                   {/* Hard - red, offset by Easy+Medium */}
                   <circle
                     cx="100" cy="100" r={R} fill="none"
                     stroke="#ef4444" strokeWidth="14"
-                    strokeDasharray={`${segH} ${C - segH}`}
-                    strokeDashoffset={-(segE + segM)}
+                    strokeDasharray={`${pH} ${C - pH}`}
+                    strokeDashoffset={-(pE + pM)}
                     strokeLinecap="round"
                   />
                 </g>
                 {/* Center total */}
                 <g>
                   <text ref={centerRef} x="100" y="94" textAnchor="middle" className="fill-white" style={{ fontSize: 28, fontWeight: 700 }}>
-                    0
+                    {total}
                   </text>
                   <text x="100" y="117" textAnchor="middle" className="fill-white/70" style={{ fontSize: 12 }}>
                     Solved

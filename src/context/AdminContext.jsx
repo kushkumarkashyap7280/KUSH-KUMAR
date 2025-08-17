@@ -53,8 +53,8 @@ export const AdminProvider = ({ children }) => {
     dispatch({ type: "SET_USER", payload: res.data.data.admin });
   };
 
-  const update = async (payload) => {
-    const res = await api.adminUpdate(payload);
+  const update = async (payload, config = {}) => {
+    const res = await api.adminUpdate(payload, config);
     dispatch({ type: "SET_USER", payload: res.data.data.admin });
   };
 

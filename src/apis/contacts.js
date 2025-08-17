@@ -14,4 +14,6 @@ export const createContact = (payload) => {
   return contactsApi.post("/", payload);
 };
 
-export const listContacts = () => contactsApi.get("/"); // admin-protected
+export const listContacts = (params = {}) => contactsApi.get("/", { params }); // admin-protected
+
+export const deleteContact = (id) => contactsApi.delete(`/${id}`);

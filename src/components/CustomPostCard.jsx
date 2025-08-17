@@ -4,6 +4,7 @@ import { FaHeart, FaRegComment, FaShare, FaExternalLinkAlt } from "react-icons/f
 
 const PLATFORM_STYLES = {
   // X / Twitter
+  x: { color: "#1D9BF0", Icon: SiX, label: "X" },
   "x.com": { color: "#1D9BF0", Icon: SiX, label: "X" },
   "twitter.com": { color: "#1D9BF0", Icon: SiX, label: "X" },
   twitter: { color: "#1D9BF0", Icon: SiX, label: "X" },
@@ -65,28 +66,34 @@ const CustomPostCard = ({ post }) => {
   const style = PLATFORM_STYLES[post?.platform] || PLATFORM_STYLES[domain] || PLATFORM_STYLES.default;
   const platformKey = (post?.platform || domain || "default").toLowerCase();
   const isVisualFirst = platformKey.includes("instagram") || platformKey.includes("youtube");
+  const hasOuterLink = Boolean(post?.published && post?.link);
+
+  // Respect isPublished/published at component level
+  if (post && post.published === false) {
+    return null;
+  }
 
   const Header = (
-    <div className="flex items-center justify-between px-5 pt-4">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between px-4 md:px-5 pt-3 md:pt-4">
+      <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/90"
+          className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white/90 shrink-0"
           style={{ backgroundColor: `${style.color}30`, color: style.color }}
         >
-          {style.Icon ? <style.Icon /> : <span className="text-xs">{style.label[0]}</span>}
+          {style.Icon ? <style.Icon className="text-[14px] md:text-[18px]" /> : <span className="text-[10px] md:text-xs">{style.label[0]}</span>}
         </div>
-        <div className="leading-tight">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold">{style.label}</span>
-            <span className="text-white/40">· {timeAgo(post?.createdAt)}</span>
+        <div className="leading-tight min-w-0">
+          <div className="flex items-center gap-2 text-xs md:text-sm min-w-0">
+            <span className="font-semibold truncate max-w-[9rem] md:max-w-none">{style.label}</span>
+            <span className="text-white/40 flex-shrink-0">· {timeAgo(post?.createdAt)}</span>
           </div>
           {domain ? (
-            <div className="text-xs text-white/50">{domain}</div>
+            <div className="text-[10px] md:text-xs text-white/50 truncate max-w-[12rem] md:max-w-none">{domain}</div>
           ) : null}
         </div>
       </div>
       {post?.link ? (
-        <FaExternalLinkAlt className="text-white/50" />
+        <FaExternalLinkAlt className="text-white/50 text-xs md:text-sm flex-shrink-0" />
       ) : null}
     </div>
   );
@@ -103,21 +110,21 @@ const CustomPostCard = ({ post }) => {
   ) : null;
 
   const Body = (
-    <div className="px-5 py-4 flex flex-col gap-2">
+    <div className="px-4 md:px-5 py-3 md:py-4 flex flex-col gap-1.5 md:gap-2 min-w-0">
       {post?.title ? (
-        <p className="text-[15px] leading-relaxed whitespace-pre-line">
+        <p className="text-[14px] md:text-[15px] leading-relaxed whitespace-pre-line break-words">
           {post.title}
         </p>
       ) : null}
       {post?.excerpt ? (
-        <p className="text-white/70 text-[14px] leading-relaxed">{post.excerpt}</p>
+        <p className="text-white/70 text-[13px] md:text-[14px] leading-relaxed break-words">{post.excerpt}</p>
       ) : null}
       {Array.isArray(post?.tags) && post.tags.length > 0 ? (
-        <div className="flex flex-wrap gap-2 mt-1">
+        <div className="flex flex-wrap gap-1.5 md:gap-2 mt-1">
           {post.tags.map((t, i) => (
             <span
               key={i}
-              className="text-[11px] px-2 py-0.5 rounded-full border border-white/10 text-white/70"
+              className="text-[10px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full border border-white/10 text-white/70"
             >
               {t}
             </span>
@@ -128,25 +135,31 @@ const CustomPostCard = ({ post }) => {
   );
 
   const Actions = (
-    <div className="px-5 pb-4 pt-1 flex items-center justify-between text-white/60">
-      <div className="flex items-center gap-6 text-sm">
-        <button className="inline-flex items-center gap-2 hover:text-white transition-colors" aria-label="Like">
-          <FaHeart />
-          <span>Like</span>
+    <div className="px-4 md:px-5 pb-3 md:pb-4 pt-1 flex items-center justify-between text-white/60">
+      <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm">
+        <button className="inline-flex items-center gap-1.5 md:gap-2 hover:text-white transition-colors" aria-label="Like">
+          <FaHeart className="text-sm md:text-base" />
+          <span className="hidden xs:inline">Like</span>
         </button>
-        <button className="inline-flex items-center gap-2 hover:text-white transition-colors" aria-label="Comment">
-          <FaRegComment />
-          <span>Comment</span>
+        <button className="inline-flex items-center gap-1.5 md:gap-2 hover:text-white transition-colors" aria-label="Comment">
+          <FaRegComment className="text-sm md:text-base" />
+          <span className="hidden xs:inline">Comment</span>
         </button>
-        <button className="inline-flex items-center gap-2 hover:text-white transition-colors" aria-label="Share">
-          <FaShare />
-          <span>Share</span>
+        <button className="inline-flex items-center gap-1.5 md:gap-2 hover:text-white transition-colors" aria-label="Share">
+          <FaShare className="text-sm md:text-base" />
+          <span className="hidden xs:inline">Share</span>
         </button>
       </div>
       {post?.link ? (
-        <a href={post.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:text-white" style={{ color: style.color }}>
-          Open
-        </a>
+        hasOuterLink ? (
+          <span className="text-xs md:text-sm" style={{ color: style.color }} aria-label="Open in new tab">
+            Open
+          </span>
+        ) : (
+          <a href={post.link} target="_blank" rel="noopener noreferrer" className="text-xs md:text-sm hover:text-white" style={{ color: style.color }}>
+            Open
+          </a>
+        )
       ) : null}
     </div>
   );
@@ -172,7 +185,7 @@ const CustomPostCard = ({ post }) => {
     </div>
   );
 
-  if (post?.published && post?.link) {
+  if (hasOuterLink) {
     return (
       <a href={post.link} target="_blank" rel="noopener noreferrer" className="block group">
         {CardInner}

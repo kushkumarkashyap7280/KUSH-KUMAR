@@ -36,7 +36,6 @@ const Posts = () => {
           }
           return { ...p, _id: id, order, published };
         });
-        console.log("normalized posts:", normalized);
         const filtered = normalized
           .filter((p) => p.published)
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -65,9 +64,9 @@ const Posts = () => {
         ) : posts.length === 0 ? (
           <div className="mt-16 text-white/60">No posts yet.</div>
         ) : (
-          <div className="lg:columns-3 md:columns-2 columns-1 mt-16 gap-5 [column-fill:balance]">
+          <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {posts.map((post) => (
-              <div key={post._id || post.id} className="mb-5 break-inside-avoid-column">
+              <div key={post._id || post.id} className="h-full">
                 <CustomPostCard post={post} />
               </div>
             ))}

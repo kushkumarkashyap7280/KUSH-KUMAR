@@ -17,9 +17,14 @@ export const adminLogout = async () => {
   return adminApi.post("/logout");
 };
 
-export const adminUpdate = async (payload) => {
-  // Accepts either JSON object or FormData
-  return adminApi.patch("/update", payload);
+export const adminUpdate = async (payload, config = {}) => {
+  // Accepts either JSON object or FormData; allow progress and extra config
+  const isForm = typeof FormData !== "undefined" && payload instanceof FormData;
+  const headers = {
+    ...(config.headers || {}),
+    ...(isForm ? { "Content-Type": "multipart/form-data" } : {}),
+  };
+  return adminApi.patch("/update", payload, { ...config, headers });
 };
 
 export const ifAdminLoggedIn = async () => {
