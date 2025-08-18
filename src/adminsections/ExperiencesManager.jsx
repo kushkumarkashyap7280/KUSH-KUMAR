@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, memo } from "react";
 import { FiPlus, FiSave, FiEdit2, FiTrash2, FiUpload, FiX, FiRefreshCw } from "react-icons/fi";
 import {
   listExperiences,
@@ -23,22 +23,31 @@ const emptyForm = {
   published: true,
 };
 
-export default function ExperiencesManager() {
+function ExperiencesManager() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [imageFile, setImageFile] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [pending, setPending] = useState({}); // id -> { published }
+  const [savingPending, setSavingPending] = useState(false);
 
   const isEdit = useMemo(() => Boolean(editingId), [editingId]);
 
-  const load = async () => {
+  const getNextOrder = useCallback(() => {
+    const nums = (items || [])
+      .map((it) => Number(it?.order))
+      .filter((n) => Number.isFinite(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return max + 1;
+  }, [items]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -50,32 +59,78 @@ export default function ExperiencesManager() {
       });
       const res = await req;
       setItems(res.data.data.items || []);
+      setPending({}); // clear staged changes on reload
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load experiences");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const resetForm = () => {
-    setForm(emptyForm);
-    setImageFile(null);
+  const effectivePublished = useCallback(
+    (it) =>
+      Object.prototype.hasOwnProperty.call(pending, it._id)
+        ? !!pending[it._id]?.published
+        : !!it.published,
+    [pending]
+  );
+
+  const hasPending = useMemo(() => Object.keys(pending).length > 0, [pending]);
+
+  const togglePublishedStage = useCallback((it) => {
+    const current = effectivePublished(it);
+    const nextVal = !current;
+    setPending((prev) => {
+      const orig = !!it.published;
+      const newEntry = { ...prev, [it._id]: { published: nextVal } };
+      if (nextVal === orig) {
+        delete newEntry[it._id];
+      }
+      return { ...newEntry };
+    });
+  }, [effectivePublished]);
+
+  const savePending = useCallback(async () => {
+    if (!hasPending) return;
+    setSavingPending(true);
+    try {
+      const entries = Object.entries(pending);
+      await toast.promise(
+        Promise.all(entries.map(([id, change]) => updateExperience(id, change))),
+        {
+          loading: "Saving changes…",
+          success: "Changes saved",
+          error: (err) => err?.response?.data?.message || err?.message || "Failed to save changes",
+        }
+      );
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to save changes");
+    } finally {
+      setSavingPending(false);
+    }
+  }, [hasPending, pending, load]);
+
+  const discardPending = useCallback(() => setPending({}), []);
+
+  const resetForm = useCallback(() => {
+    setForm({ ...emptyForm, order: getNextOrder() });
     setLogoFile(null);
     setProgress(0);
     setShowForm(true);
-  };
+  }, [getNextOrder]);
 
-  const startCreate = () => {
+  const startCreate = useCallback(() => {
     setEditingId(null);
     resetForm();
     setShowForm(true);
-  };
+  }, [resetForm]);
 
-  const startEdit = (it) => {
+  const startEdit = useCallback((it) => {
     setEditingId(it._id);
     setForm({
       role: it.role || "",
@@ -87,16 +142,15 @@ export default function ExperiencesManager() {
       responsibilities: Array.isArray(it.responsibilities) ? it.responsibilities.join(", ") : "",
       tags: Array.isArray(it.tags) ? it.tags.join(", ") : "",
       review: it.review || "",
-      order: typeof it.order === "number" ? it.order : 0,
+      order: Number.isFinite(Number(it.order)) ? Number(it.order) : getNextOrder(),
       published: !!it.published,
     });
-    setImageFile(null);
     setLogoFile(null);
     setProgress(0);
     setShowForm(true);
-  };
+  }, [getNextOrder]);
 
-  const onSubmit = async (e) => {
+  const onSubmit = useCallback(async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setProgress(0);
@@ -117,10 +171,9 @@ export default function ExperiencesManager() {
       resp.forEach((r) => fd.append("responsibilities", r));
       tags.forEach((t) => fd.append("tags", t));
 
-      if (imageFile) fd.append("image", imageFile);
       if (logoFile) fd.append("logo", logoFile);
 
-      const config = (imageFile || logoFile)
+      const config = (logoFile)
         ? {
             onUploadProgress: (evt) => {
               if (!evt.total) return;
@@ -147,9 +200,9 @@ export default function ExperiencesManager() {
       setSubmitting(false);
       setProgress(0);
     }
-  };
+  }, [isEdit, form, logoFile, editingId, load, resetForm]);
 
-  const onDelete = async (id) => {
+  const onDelete = useCallback(async (id) => {
     const ok = await confirmToast({ title: "Delete this experience?", description: "This action cannot be undone." });
     if (!ok) return;
     try {
@@ -165,19 +218,33 @@ export default function ExperiencesManager() {
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || "Delete failed");
     }
-  };
+  }, [load]);
 
-  const onCancel = () => {
+  const onCancel = useCallback(() => {
     setEditingId(null);
     resetForm();
     setShowForm(false);
-  };
+  }, [resetForm]);
+
+  const rows = useMemo(() => items, [items]);
 
   return (
     <section id="experiences" className="rounded-xl border border-white/10 bg-white/5 p-6 text-white/90 backdrop-blur scroll-mt-24">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Experiences</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={savePending}
+            disabled={!hasPending || savingPending}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs border ${hasPending ? "bg-white text-black border-white/10 hover:bg-white/90" : "bg-white/10 text-white/60 border-white/10 cursor-not-allowed"}`}
+          >
+            <FiSave /> {savingPending ? "Saving…" : "Save Changes"}
+          </button>
+          {hasPending && (
+            <button onClick={discardPending} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
+              <FiX /> Discard
+            </button>
+          )}
           <button onClick={load} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
             <FiRefreshCw /> Refresh
           </button>
@@ -212,17 +279,27 @@ export default function ExperiencesManager() {
               <tr><td className="px-3 py-3" colSpan={8}>Loading…</td></tr>
             ) : error ? (
               <tr><td className="px-3 py-3 text-red-300" colSpan={8}>{error}</td></tr>
-            ) : items.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr><td className="px-3 py-3 text-white/70" colSpan={8}>No experiences yet.</td></tr>
             ) : (
-              items.map((it) => (
+              rows.map((it) => (
                 <tr key={it._id} className="odd:bg-white/0 even:bg-white/[0.03]">
                   <td className="px-3 py-2">{it.role}</td>
                   <td className="px-3 py-2">{it.company}</td>
                   <td className="px-3 py-2">{it.startDate?.substring(0,10) || ""}</td>
                   <td className="px-3 py-2">{it.current ? "Present" : (it.endDate?.substring(0,10) || "")}</td>
                   <td className="px-3 py-2">{it.current ? "Yes" : "No"}</td>
-                  <td className="px-3 py-2">{it.published ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => togglePublishedStage(it)}
+                      disabled={savingPending}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] border ${effectivePublished(it) ? "bg-emerald-600/20 border-emerald-400/30 text-emerald-200 hover:bg-emerald-600/25" : "bg-white/10 border-white/15 text-white/80 hover:bg-white/15"}`}
+                      title={effectivePublished(it) ? "Click to mark as Unpublished (staged)" : "Click to mark as Published (staged)"}
+                    >
+                      {effectivePublished(it) ? "Published" : "Unpublished"}
+                      {Object.prototype.hasOwnProperty.call(pending, it._id) && <span className="ml-1 text-[10px] opacity-70">(staged)</span>}
+                    </button>
+                  </td>
                   <td className="px-3 py-2">{it.order ?? 0}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -292,28 +369,17 @@ export default function ExperiencesManager() {
             <span>Published</span>
           </label>
 
-          <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <span className="block text-xs text-white/70 mb-1">Image</span>
-              <label className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15 cursor-pointer">
-                <FiUpload />
-                <span>Select Image</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e)=> setImageFile(e.target.files?.[0] || null)} />
-              </label>
-              {imageFile && <div className="mt-1 text-[11px] text-white/70">{imageFile.name}</div>}
-            </div>
-            <div>
-              <span className="block text-xs text-white/70 mb-1">Logo</span>
-              <label className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15 cursor-pointer">
-                <FiUpload />
-                <span>Select Logo</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e)=> setLogoFile(e.target.files?.[0] || null)} />
-              </label>
-              {logoFile && <div className="mt-1 text-[11px] text-white/70">{logoFile.name}</div>}
-            </div>
+          <div className="sm:col-span-2">
+            <span className="block text-xs text-white/70 mb-1">Logo</span>
+            <label className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15 cursor-pointer">
+              <FiUpload />
+              <span>Select Logo</span>
+              <input type="file" accept="image/*" className="hidden" onChange={(e)=> setLogoFile(e.target.files?.[0] || null)} />
+            </label>
+            {logoFile && <div className="mt-1 text:[11px] text-white/70">{logoFile.name}</div>}
           </div>
 
-          {submitting && (imageFile || logoFile) && (
+          {submitting && (logoFile) && (
             <div className="sm:col-span-2">
               <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
                 <div className="h-full bg-white/80" style={{ width: `${progress}%`, transition: "width 120ms ease" }} />
@@ -338,3 +404,5 @@ export default function ExperiencesManager() {
     </section>
   );
 }
+
+export default memo(ExperiencesManager);

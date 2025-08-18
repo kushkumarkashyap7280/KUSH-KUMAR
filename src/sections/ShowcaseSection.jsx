@@ -43,9 +43,22 @@ const AppShowcase = () => {
       const stack = Array.isArray(p?.techStack) ? p.techStack.map((t) => String(t).toLowerCase()) : [];
       return stack.some((t) => t.includes(q));
     })
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    .sort((a, b) => {
+      const aOn = Number(a?.order);
+      const bOn = Number(b?.order);
+      const ao = Number.isFinite(aOn) ? aOn : Number.MAX_SAFE_INTEGER;
+      const bo = Number.isFinite(bOn) ? bOn : Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      const ac = a?.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+      const bc = b?.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+      return bc - ac; // newer first when order ties
+    });
 
   const visibleItems = filtered.slice(0, visible);
+
+  // If there are no published projects at all from API, hide the entire section
+  const publishedCount = (projects || []).filter((p) => p?.published === true).length;
+  if (publishedCount === 0) return null;
 
   return (
     <section id="work" className="relative p-6">
@@ -59,13 +72,11 @@ const AppShowcase = () => {
               setFilterStatus(e.target.value);
               setVisible(3);
             }}
-            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
+            className="rounded-md border border-white/20 bg-black/40 px-2 py-1 text-sm text-white"
           >
             <option value="all">All</option>
-            <option value="planned">Planned</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -83,7 +94,12 @@ const AppShowcase = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {visibleItems.map((p, idx) => (
+        {filtered.length === 0 ? (
+          <div className="col-span-full rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+            No projects match the selected filters.
+          </div>
+        ) : (
+        visibleItems.map((p, idx) => (
           <article
             key={p?._id || idx}
             className="group rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition-colors duration-300 shadow-sm hover:shadow-md"
@@ -151,7 +167,8 @@ const AppShowcase = () => {
               </div>
             </div>
           </article>
-        ))}
+        ))
+        )}
       </div>
 
       {/* Show more / less */}

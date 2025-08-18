@@ -130,6 +130,29 @@ Assets and snippets used in the project can be found in the **[video kit](https:
 </a>
 
 
+## Project Overview (Client)
+
+This client is a modern React + Vite front-end for a personal portfolio.
+
+- Built with Tailwind CSS, GSAP animations, and componentized sections.
+- Consumes the Express API in `server/` for public data (admin profile, experiences, qualifications).
+- Notable UI touches:
+  - `Hero.jsx` shows name and a public description/bio (if provided by the API).
+  - `Qualifications.jsx` and `Experience.jsx` scale card images to 95% of the card for a bolder visual.
+
+### Local Dev
+
+1) Install deps: `npm install`
+2) Run: `npm run dev`
+3) Configure `VITE_API_BASE_URL` in `client/.env` to point to the server (e.g., `http://localhost:8000/api`).
+
+## About Me
+
+- X: https://x.com/CallOfCoders
+- LeetCode: https://leetcode.com/kushkumarkashyap7280
+
+Feel free to replace these with your own links if you fork the project.
+
 ## <a name="more">🚀 More</a>
 
 **Advance your skills with JSM Pro Courses**

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAdmin } from "../context/AdminContext";
-import { FiEdit2, FiSave, FiX, FiUpload, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiSave, FiX, FiUpload, FiTrash2, FiEye, FiEyeOff } from "react-icons/fi";
 import { toast } from "sonner";
 import { confirmToast } from "./ConfirmToast";
 
@@ -21,10 +21,16 @@ export default function AdminProfile() {
 
   const [form, setForm] = useState(initial);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   // Keep form in sync if user changes (e.g., after refresh or update)
   useEffect(() => {
     setForm(initial);
+    setNewPassword("");
+    setConfirmPassword("");
   }, [initial]);
 
   // Qualifications editor (local only; API accepts full array, not returned by /me)
@@ -125,6 +131,15 @@ export default function AdminProfile() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // Validate password fields if provided
+      if (newPassword || confirmPassword) {
+        if (newPassword.length < 6) {
+          throw new Error("Password must be at least 6 characters");
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
+      }
       const fd = new FormData();
       if (form.Fname) fd.append("Fname", form.Fname);
       if (typeof form.Lname === "string") fd.append("Lname", form.Lname);
@@ -132,6 +147,7 @@ export default function AdminProfile() {
       if (typeof form.description === "string") fd.append("description", form.description);
       if (form.resume) fd.append("resume", form.resume); // server accepts resume or resumeUrl
       if (avatarFile) fd.append("avatar", avatarFile);
+      if (newPassword) fd.append("password", newPassword);
 
       // Send qualifications as JSON array under key 'qualification' (server expects this exact field)
       if (Array.isArray(qualifications) && qualifications.length > 0) {
@@ -170,6 +186,8 @@ export default function AdminProfile() {
       });
       await req;
       setEditing(false);
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || err?.message || "Failed to update");
@@ -184,6 +202,10 @@ export default function AdminProfile() {
     setAvatarFile(null);
     setUploadProgress(0);
     setQualifications([]);
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPwd(false);
+    setShowConfirmPwd(false);
     setEditing(false);
   };
 
@@ -325,6 +347,42 @@ export default function AdminProfile() {
                 onChange={(e) => handleField("email", e.target.value)}
                 required
               />
+            </label>
+            <label className="text-xs relative">
+              <span className="block mb-1 text-white/70">New Password</span>
+              <input
+                type={showNewPwd ? "text" : "password"}
+                className="w-full rounded-md bg-white/10 border border-white/10 px-3 py-2 pr-9 text-sm"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Leave blank to keep current"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPwd((v) => !v)}
+                className="absolute right-2 bottom-2.5 text-white/70 hover:text-white"
+                aria-label={showNewPwd ? "Hide password" : "Show password"}
+              >
+                {showNewPwd ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </label>
+            <label className="text-xs relative">
+              <span className="block mb-1 text-white/70">Confirm Password</span>
+              <input
+                type={showConfirmPwd ? "text" : "password"}
+                className="w-full rounded-md bg-white/10 border border-white/10 px-3 py-2 pr-9 text-sm"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPwd((v) => !v)}
+                className="absolute right-2 bottom-2.5 text-white/70 hover:text-white"
+                aria-label={showConfirmPwd ? "Hide password" : "Show password"}
+              >
+                {showConfirmPwd ? <FiEyeOff /> : <FiEye />}
+              </button>
             </label>
             <label className="text-xs sm:col-span-2">
               <span className="block mb-1 text-white/70">Description</span>

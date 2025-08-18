@@ -18,8 +18,7 @@ const emptyForm = {
   outcome: "",
   repoUrl: "",
   demoUrl: "",
-  featured: false,
-  status: "planned",
+  status: "in_progress",
   order: 0,
   published: true,
 };
@@ -36,8 +35,18 @@ export default function ProjectsManager() {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [pending, setPending] = useState({}); // id -> { published }
+  const [savingPending, setSavingPending] = useState(false);
 
   const isEdit = useMemo(() => Boolean(editingId), [editingId]);
+
+  const getNextOrder = () => {
+    const nums = (items || [])
+      .map((it) => Number(it?.order))
+      .filter((n) => Number.isFinite(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return max + 1;
+  };
 
   const load = async () => {
     setLoading(true);
@@ -51,6 +60,7 @@ export default function ProjectsManager() {
       });
       const res = await req;
       setItems(res.data.data.items || []);
+      setPending({}); // clear any staged changes on full reload
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load projects");
     } finally {
@@ -58,12 +68,56 @@ export default function ProjectsManager() {
     }
   };
 
+  const effectivePublished = (it) =>
+    Object.prototype.hasOwnProperty.call(pending, it._id)
+      ? !!pending[it._id]?.published
+      : !!it.published;
+
+  const hasPending = useMemo(() => Object.keys(pending).length > 0, [pending]);
+
+  const togglePublishedStage = (it) => {
+    const current = effectivePublished(it);
+    const nextVal = !current;
+    setPending((prev) => {
+      const orig = !!it.published;
+      const newEntry = { ...prev, [it._id]: { published: nextVal } };
+      // If staged value equals original, remove from pending
+      if (nextVal === orig) {
+        delete newEntry[it._id];
+      }
+      return { ...newEntry };
+    });
+  };
+
+  const savePending = async () => {
+    if (!hasPending) return;
+    setSavingPending(true);
+    try {
+      const entries = Object.entries(pending);
+      await toast.promise(
+        Promise.all(entries.map(([id, change]) => updateProject(id, change))),
+        {
+          loading: "Saving changes…",
+          success: "Changes saved",
+          error: (err) => err?.response?.data?.message || err?.message || "Failed to save changes",
+        }
+      );
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to save changes");
+    } finally {
+      setSavingPending(false);
+    }
+  };
+
+  const discardPending = () => setPending({});
+
   useEffect(() => {
     load();
   }, []);
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, order: getNextOrder() });
     setThumbnailFile(null);
     setImagesFiles([]);
     setProgress(0);
@@ -87,9 +141,8 @@ export default function ProjectsManager() {
       outcome: it.outcome || "",
       repoUrl: it.repoUrl || "",
       demoUrl: it.demoUrl || "",
-      featured: !!it.featured,
-      status: it.status || "planned",
-      order: typeof it.order === "number" ? it.order : 0,
+      status: it.status || "in_progress",
+      order: Number.isFinite(Number(it.order)) ? Number(it.order) : getNextOrder(),
       published: !!it.published,
     });
     setThumbnailFile(null);
@@ -115,8 +168,7 @@ export default function ProjectsManager() {
       if (form.outcome) fd.append("outcome", form.outcome);
       if (form.repoUrl) fd.append("repoUrl", form.repoUrl);
       if (form.demoUrl) fd.append("demoUrl", form.demoUrl);
-      fd.append("featured", String(!!form.featured));
-      fd.append("status", form.status || "planned");
+      fd.append("status", form.status || "in_progress");
       fd.append("order", String(Number(form.order) || 0));
       fd.append("published", String(!!form.published));
 
@@ -183,6 +235,18 @@ export default function ProjectsManager() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Projects</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={savePending}
+            disabled={!hasPending || savingPending}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs border ${hasPending ? "bg-white text-black border-white/10 hover:bg-white/90" : "bg-white/10 text-white/60 border-white/10 cursor-not-allowed"}`}
+          >
+            <FiSave /> {savingPending ? "Saving…" : "Save Changes"}
+          </button>
+          {hasPending && (
+            <button onClick={discardPending} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
+              <FiX /> Discard
+            </button>
+          )}
           <button onClick={load} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
             <FiRefreshCw /> Refresh
           </button>
@@ -205,7 +269,6 @@ export default function ProjectsManager() {
               <th className="px-3 py-2">Title</th>
               <th className="px-3 py-2">Slug</th>
               <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Featured</th>
               <th className="px-3 py-2">Published</th>
               <th className="px-3 py-2">Order</th>
               <th className="px-3 py-2">Actions</th>
@@ -213,19 +276,28 @@ export default function ProjectsManager() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-3 py-3" colSpan={7}>Loading…</td></tr>
+              <tr><td className="px-3 py-3" colSpan={6}>Loading…</td></tr>
             ) : error ? (
-              <tr><td className="px-3 py-3 text-red-300" colSpan={7}>{error}</td></tr>
+              <tr><td className="px-3 py-3 text-red-300" colSpan={6}>{error}</td></tr>
             ) : items.length === 0 ? (
-              <tr><td className="px-3 py-3 text-white/70" colSpan={7}>No projects yet.</td></tr>
+              <tr><td className="px-3 py-3 text-white/70" colSpan={6}>No projects yet.</td></tr>
             ) : (
               items.map((it) => (
                 <tr key={it._id} className="odd:bg-white/0 even:bg-white/[0.03]">
                   <td className="px-3 py-2">{it.title}</td>
                   <td className="px-3 py-2">{it.slug}</td>
                   <td className="px-3 py-2">{it.status}</td>
-                  <td className="px-3 py-2">{it.featured ? "Yes" : "No"}</td>
-                  <td className="px-3 py-2">{it.published ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => togglePublishedStage(it)}
+                      disabled={savingPending}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] border ${effectivePublished(it) ? "bg-emerald-600/20 border-emerald-400/30 text-emerald-200 hover:bg-emerald-600/25" : "bg-white/10 border-white/15 text-white/80 hover:bg-white/15"}`}
+                      title={effectivePublished(it) ? "Click to mark as Unpublished (staged)" : "Click to mark as Published (staged)"}
+                    >
+                      {effectivePublished(it) ? "Published" : "Unpublished"}
+                      {Object.prototype.hasOwnProperty.call(pending, it._id) && <span className="ml-1 text-[10px] opacity-70">(staged)</span>}
+                    </button>
+                  </td>
                   <td className="px-3 py-2">{it.order ?? 0}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -288,16 +360,10 @@ export default function ProjectsManager() {
           </label>
           <label className="text-xs">
             <span className="mb-1 block text-white/70">Status</span>
-            <select className="w-full rounded bg-white/10 border border-white/10 px-3 py-2 text-sm" value={form.status} onChange={(e)=>setForm({...form, status:e.target.value})}>
-              <option value="planned">planned</option>
+            <select className="w-full rounded bg-black/40 border border-white/20 px-3 py-2 text-sm text-white" value={form.status} onChange={(e)=>setForm({...form, status:e.target.value})}>
               <option value="in_progress">in_progress</option>
               <option value="completed">completed</option>
-              <option value="archived">archived</option>
             </select>
-          </label>
-          <label className="text-xs inline-flex items-center gap-2">
-            <input type="checkbox" checked={form.featured} onChange={(e)=>setForm({...form, featured:e.target.checked})} />
-            <span>Featured</span>
           </label>
           <label className="text-xs inline-flex items-center gap-2">
             <input type="checkbox" checked={form.published} onChange={(e)=>setForm({...form, published:e.target.checked})} />

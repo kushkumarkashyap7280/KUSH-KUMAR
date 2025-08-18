@@ -2,11 +2,12 @@
 // Output shape:
 // {
 //   review: string,
-//   imgPath: string,
+//   imgPath: string, // unused for Experience (kept for API compatibility; always "")
 //   logoPath: string,
 //   title: string, // role
 //   date: string,  // e.g. "January 2023 - Present"
 //   responsibilities: string[]
+//   current: boolean
 // }
 
 function safeGetDate(val) {
@@ -62,11 +63,12 @@ export function toExpCard(doc) {
   if (doc.title && doc.date && Array.isArray(doc.responsibilities)) {
     return {
       review: doc.review || "",
-      imgPath: doc.imgPath || doc.image || "",
+      imgPath: "",
       logoPath: doc.logoPath || doc.logo || "",
       title: doc.title,
       date: doc.date,
       responsibilities: doc.responsibilities,
+      current: !!doc.current,
       tags: Array.isArray(doc.tags) ? doc.tags : parseMaybeJSONStringArray(doc.tags),
       company: doc.company || "",
       location: doc.location || "",
@@ -79,11 +81,12 @@ export function toExpCard(doc) {
 
   return {
     review: typeof doc.review === "string" ? doc.review.replace(/^"|"$/g, "") : (doc.review || ""),
-    imgPath: doc.image || doc.imgPath || "",
-    logoPath: doc.logoPath || doc.logo || doc.image || "",
+    imgPath: "",
+    logoPath: doc.logoPath || doc.logo || "",
     title: doc.role || doc.title || "",
     date,
     responsibilities,
+    current: !!doc.current,
     tags,
     company: doc.company || "",
     location: doc.location || "",

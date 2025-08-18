@@ -43,6 +43,7 @@ export default function App() {
   return (
     <LoaderProvider>
       <AdminProvider>
+        {/* Background removed as requested */}
         {showCursor && (
           <Suspense fallback={null}>
             <CustomCursor />

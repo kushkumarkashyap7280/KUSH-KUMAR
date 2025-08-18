@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, memo } from "react";
 import { FiPlus, FiSave, FiEdit2, FiTrash2, FiUpload, FiX, FiRefreshCw } from "react-icons/fi";
 import { listPosts, createPost, updatePost, deletePost } from "../apis/posts";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ const emptyForm = {
   published: true,
 };
 
-export default function PostsManager() {
+function PostsManager() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,10 +25,20 @@ export default function PostsManager() {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [pending, setPending] = useState({}); // id -> { published }
+  const [savingPending, setSavingPending] = useState(false);
 
   const isEdit = useMemo(() => Boolean(editingId), [editingId]);
 
-  const load = async () => {
+  const getNextOrder = useCallback(() => {
+    const nums = (items || [])
+      .map((it) => Number(it?.order))
+      .filter((n) => Number.isFinite(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return max + 1;
+  }, [items]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -41,32 +51,79 @@ export default function PostsManager() {
       const res = await req;
       const items = res?.data?.data?.items ?? [];
       setItems(Array.isArray(items) ? items : []);
+      setPending({}); // clear staged changes on full reload
       setError("");
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const resetForm = () => {
-    setForm(emptyForm);
+  const effectivePublished = useCallback(
+    (it) =>
+      Object.prototype.hasOwnProperty.call(pending, it._id)
+        ? !!pending[it._id]?.published
+        : !!it.published,
+    [pending]
+  );
+
+  const hasPending = useMemo(() => Object.keys(pending).length > 0, [pending]);
+
+  const togglePublishedStage = useCallback((it) => {
+    const current = effectivePublished(it);
+    const nextVal = !current;
+    setPending((prev) => {
+      const orig = !!it.published;
+      const newEntry = { ...prev, [it._id]: { published: nextVal } };
+      if (nextVal === orig) {
+        delete newEntry[it._id];
+      }
+      return { ...newEntry };
+    });
+  }, [effectivePublished]);
+
+  const savePending = useCallback(async () => {
+    if (!hasPending) return;
+    setSavingPending(true);
+    try {
+      const entries = Object.entries(pending);
+      await toast.promise(
+        Promise.all(entries.map(([id, change]) => updatePost(id, change))),
+        {
+          loading: "Saving changes…",
+          success: "Changes saved",
+          error: (err) => err?.response?.data?.message || err?.message || "Failed to save changes",
+        }
+      );
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to save changes");
+    } finally {
+      setSavingPending(false);
+    }
+  }, [hasPending, pending, load]);
+
+  const discardPending = useCallback(() => setPending({}), []);
+
+  const resetForm = useCallback(() => {
+    setForm({ ...emptyForm, order: getNextOrder() });
     setImageFile(null);
     setProgress(0);
     setShowForm(true);
-  };
+  }, [getNextOrder]);
 
-  const startCreate = () => {
+  const startCreate = useCallback(() => {
     setEditingId(null);
     resetForm();
     setShowForm(true);
-  };
+  }, [resetForm]);
 
-  const startEdit = (it) => {
+  const startEdit = useCallback((it) => {
     setEditingId(it._id);
     setForm({
       platform: it.platform || "x",
@@ -74,15 +131,15 @@ export default function PostsManager() {
       link: it.link || "",
       excerpt: it.excerpt || "",
       tags: Array.isArray(it.tags) ? it.tags.join(", ") : "",
-      order: typeof it.order === "number" ? it.order : 0,
+      order: Number.isFinite(Number(it.order)) ? Number(it.order) : getNextOrder(),
       published: !!it.published,
     });
     setImageFile(null);
     setProgress(0);
     setShowForm(true);
-  };
+  }, [getNextOrder]);
 
-  const onSubmit = async (e) => {
+  const onSubmit = useCallback(async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setProgress(0);
@@ -125,9 +182,9 @@ export default function PostsManager() {
       setSubmitting(false);
       setProgress(0);
     }
-  };
+  }, [isEdit, form, imageFile, editingId, load, resetForm]);
 
-  const onDelete = async (id) => {
+  const onDelete = useCallback(async (id) => {
     const ok = await confirmToast({ title: "Delete this post?", description: "This action cannot be undone." });
     if (!ok) return;
     try {
@@ -143,19 +200,33 @@ export default function PostsManager() {
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || "Delete failed");
     }
-  };
+  }, [load]);
 
-  const onCancel = () => {
+  const onCancel = useCallback(() => {
     setEditingId(null);
     resetForm();
     setShowForm(false);
-  };
+  }, [resetForm]);
+
+  const rows = useMemo(() => items, [items]);
 
   return (
     <section id="posts" className="rounded-xl border border-white/10 bg-white/5 p-6 text-white/90 backdrop-blur scroll-mt-24">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Posts</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={savePending}
+            disabled={!hasPending || savingPending}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs border ${hasPending ? "bg-white text-black border-white/10 hover:bg-white/90" : "bg-white/10 text-white/60 border-white/10 cursor-not-allowed"}`}
+          >
+            <FiSave /> {savingPending ? "Saving…" : "Save Changes"}
+          </button>
+          {hasPending && (
+            <button onClick={discardPending} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
+              <FiX /> Discard
+            </button>
+          )}
           <button onClick={load} className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
             <FiRefreshCw /> Refresh
           </button>
@@ -188,15 +259,25 @@ export default function PostsManager() {
               <tr><td className="px-3 py-3" colSpan={6}>Loading…</td></tr>
             ) : error ? (
               <tr><td className="px-3 py-3 text-red-300" colSpan={6}>{error}</td></tr>
-            ) : items.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr><td className="px-3 py-3 text-white/70" colSpan={6}>No posts yet.</td></tr>
             ) : (
-              items.map((it) => (
+              rows.map((it) => (
                 <tr key={it._id} className="odd:bg-white/0 even:bg-white/[0.03]">
                   <td className="px-3 py-2">{it.platform}</td>
                   <td className="px-3 py-2">{it.title}</td>
                   <td className="px-3 py-2 truncate max-w-[240px]"><a href={it.link} target="_blank" rel="noreferrer" className="underline">{it.link}</a></td>
-                  <td className="px-3 py-2">{it.published ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => togglePublishedStage(it)}
+                      disabled={savingPending}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] border ${effectivePublished(it) ? "bg-emerald-600/20 border-emerald-400/30 text-emerald-200 hover:bg-emerald-600/25" : "bg-white/10 border-white/15 text-white/80 hover:bg-white/15"}`}
+                      title={effectivePublished(it) ? "Click to mark as Unpublished (staged)" : "Click to mark as Published (staged)"}
+                    >
+                      {effectivePublished(it) ? "Published" : "Unpublished"}
+                      {Object.prototype.hasOwnProperty.call(pending, it._id) && <span className="ml-1 text-[10px] opacity-70">(staged)</span>}
+                    </button>
+                  </td>
                   <td className="px-3 py-2">{it.order ?? 0}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -223,7 +304,7 @@ export default function PostsManager() {
         <form onSubmit={onSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-xs">
             <span className="mb-1 block text-white/70">Platform</span>
-            <select className="w-full rounded bg-white/10 border border-white/10 px-3 py-2 text-sm" value={form.platform} onChange={(e)=>setForm({...form, platform:e.target.value})}>
+            <select className="w-full rounded bg-black/40 border border-white/20 px-3 py-2 text-sm text-white" value={form.platform} onChange={(e)=>setForm({...form, platform:e.target.value})}>
               <option value="x">x</option>
               <option value="linkedin">linkedin</option>
               <option value="youtube">youtube</option>
@@ -290,3 +371,5 @@ export default function PostsManager() {
     </section>
   );
 }
+
+export default memo(PostsManager);
