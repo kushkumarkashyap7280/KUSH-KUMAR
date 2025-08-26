@@ -32,7 +32,7 @@ const Experience = () => {
     return () => { mounted = false; };
   }, []);
 
-  const list = useMemo(() => items, [items]);
+  const list = useMemo(() => [...items].reverse(), [items]);
 
   // No ScrollTrigger; using viewport on motion instead
 
