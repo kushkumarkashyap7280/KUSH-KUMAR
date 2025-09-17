@@ -1,16 +1,25 @@
 import axios from "axios";
+import { configureAxiosInstance } from "../utils/axiosConfig";
 
 // Projects API
-
 const projectsApi = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL}/projects`,
   withCredentials: true,
   headers: { Accept: "application/json" },
 });
 
+// Apply auth interceptor to this specific instance
+configureAxiosInstance(projectsApi);
+
 export const getPublicProjects = () => projectsApi.get("/public");
 export const getPublicProjectById = (id) => projectsApi.get(`/public/${id}`);
-export const listProjects = () => projectsApi.get("/");
+export const listProjects = () => {
+  // Get token directly for this critical request
+  const token = localStorage.getItem('authToken');
+  return projectsApi.get("/", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+};
 export const getProjectById = (id) => projectsApi.get(`/${id}`);
 
 export const createProject = (payload, config = {}) => {

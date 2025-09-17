@@ -1,5 +1,6 @@
 import axios from "axios";
 import { setAuthToken, removeAuthToken } from "../utils/auth";
+import { configureAxiosInstance } from "../utils/axiosConfig";
 
 // Admin API
 // Note: For file uploads (signup/update with avatar/resume), pass a FormData instance.
@@ -10,13 +11,24 @@ export const adminApi = axios.create({
   headers: { Accept: "application/json" },
 });
 
+// Apply auth interceptor to admin API instance
+configureAxiosInstance(adminApi);
+
 export const adminLogin = async ({ email, password }) => {
-  const response = await adminApi.post("/login", { email, password });
-  // Store token in localStorage as backup auth method
-  if (response.data?.data?.token) {
-    setAuthToken(response.data.data.token);
+  try {
+    const response = await adminApi.post("/login", { email, password });
+    // Store token in localStorage as backup auth method
+    if (response.data?.data?.token) {
+      setAuthToken(response.data.data.token);
+      console.log("Token saved to localStorage:", response.data.data.token.substring(0, 15) + "...");
+    } else {
+      console.warn("No token found in login response");
+    }
+    return response;
+  } catch (error) {
+    console.error("Login error:", error);
+    throw error;
   }
-  return response;
 };
 
 export const adminLogout = async () => {

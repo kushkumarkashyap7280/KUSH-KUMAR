@@ -1,16 +1,25 @@
 import axios from "axios";
+import { configureAxiosInstance } from "../utils/axiosConfig";
 
 // Experiences API
-
 const experiencesApi = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL}/experiences`,
   withCredentials: true,
   headers: { Accept: "application/json" },
 });
 
+// Apply auth interceptor to this specific instance
+configureAxiosInstance(experiencesApi);
+
 export const getPublicExperiences = () => experiencesApi.get("/public");
 export const getPublicExperienceById = (id) => experiencesApi.get(`/public/${id}`);
-export const listExperiences = () => experiencesApi.get("/");
+export const listExperiences = () => {
+  // Get token directly for this critical request
+  const token = localStorage.getItem('authToken');
+  return experiencesApi.get("/", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+};
 export const getExperienceById = (id) => experiencesApi.get(`/${id}`);
 
 export const createExperience = (payload, config = {}) => {

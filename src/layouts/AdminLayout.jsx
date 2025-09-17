@@ -10,6 +10,7 @@ import PostsManager from "../adminsections/PostsManager";
 import ContactsManager from "../adminsections/ContactsManager";
 import AdminFooter from "../sections/AdminFooter";
 import GlowCard from "../components/GlowCard";
+import AuthDebugger from "../components/AuthDebugger";
 
 export default function AdminLayout() {
   const { user } = useAdmin();
@@ -41,6 +42,9 @@ export default function AdminLayout() {
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-black text-white">
       {/* Top Bar */}
       <TopBar />
+
+      {/* Add Auth Debugger component */}
+      <AuthDebugger />
 
       {/* Content - stacked sections like public layout */}
       <main className="mx-auto w-full max-w-7xl px-4 pt-24 md:pt-28 pb-8 sm:px-6">
