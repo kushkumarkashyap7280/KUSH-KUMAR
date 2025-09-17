@@ -4,6 +4,10 @@ import { Toaster } from 'sonner'
 
 import './index.css'
 import App from './App.jsx'
+import { setupAxiosInterceptors } from './utils/axiosConfig'
+
+// Setup global axios interceptors for authentication
+setupAxiosInterceptors();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
