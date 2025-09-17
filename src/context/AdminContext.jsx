@@ -1,5 +1,6 @@
 import { createContext, useReducer, useContext, useEffect } from "react";
 import * as api from  "../apis/admin"; // your axios methods
+import { configureAxiosAuth } from "../utils/auth";
 
 const AdminContext = createContext();
 
@@ -26,6 +27,12 @@ function adminReducer(state, action) {
 
 export const AdminProvider = ({ children }) => {
   const [state, dispatch] = useReducer(adminReducer, initialState);
+
+  // Configure axios with auth interceptors
+  useEffect(() => {
+    // Configure the admin API with auth interceptors
+    configureAxiosAuth(api.adminApi);
+  }, []);
 
   // wrapper methods that call API and dispatch
   const login = async (creds) => {

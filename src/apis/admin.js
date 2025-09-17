@@ -1,20 +1,28 @@
 import axios from "axios";
+import { addAuthHeader } from "../utils/auth";
 
 // Admin API
 // Note: For file uploads (signup/update with avatar/resume), pass a FormData instance.
 
-const adminApi = axios.create({
+export const adminApi = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL}/admin`,
-  withCredentials: true,
+  withCredentials: true, // Essential for sending and receiving cookies
   headers: { Accept: "application/json" },
 });
 
 export const adminLogin = async ({ email, password }) => {
-  return adminApi.post("/login", { email, password });
+  const response = await adminApi.post("/login", { email, password });
+  // Store token in localStorage as backup auth method
+  if (response.data?.data?.token) {
+    localStorage.setItem('authToken', response.data.data.token);
+  }
+  return response;
 };
 
 export const adminLogout = async () => {
-  return adminApi.post("/logout");
+  await adminApi.post("/logout");
+  // Clear the token from localStorage on logout
+  localStorage.removeItem('authToken');
 };
 
 export const adminUpdate = async (payload, config = {}) => {
@@ -28,7 +36,20 @@ export const adminUpdate = async (payload, config = {}) => {
 };
 
 export const ifAdminLoggedIn = async () => {
-  return adminApi.get("/me");
+  try {
+    // Try using the cookie-based authentication first
+    return await adminApi.get("/me");
+  } catch (error) {
+    // If cookie auth fails, try token-based auth as fallback
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      return adminApi.get("/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    }
+    // If no token or still fails, throw the error
+    throw error;
+  }
 };
 
 // Public admin profile by configured email
