@@ -199,7 +199,7 @@ const socialLinks = [
     name: "YouTube",
     Icon: FaYoutube,
     color: "#FF0000",
-    link: "https://www.youtube.com/@callofcoders",
+    link: "https://github.com/kushkumarkashyap7280/KUSH-KUMAR.git",
   },
   {
     name: "LinkedIn",
